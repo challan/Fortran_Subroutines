@@ -308,7 +308,9 @@
 	  ALLOCATE(INACTIVE(N_slipSys))  
 	  IF (Numb_PA .gt. 0) THEN
 		CALL INACTIVE_SLIP_REMOVAL(A_alpha_beta,b,PA,N_slipSys,Numb_PA,INACTIVE,x_beta1)
-		! CALL find_active(PA,INACTIVE,N_slipSys,Numb_PA)
+		DEALLOCATE(PA)
+		ALLOCATE(PA(Numb_PA))
+		CALL find_active(PA,INACTIVE,N_slipSys,Numb_PA)
 		write(*,*)'Final No. of Active Slip Systems:',Numb_PA
 		write(*,*) 'Final PA:',PA
 	  ENDIF
@@ -575,8 +577,8 @@ END FUNCTION FindDet
 	  ALLOCATE(PA_temp(Numb_PA))
 	  PA_temp=PA
 
-	  A1=A(PA_temp(1:Numb_PA),PA_temp(1:Numb_PA))
-	  b1=b(PA_temp(1:Numb_PA))
+	  A1=A(PA_temp,PA_temp)
+	  b1=b(PA_temp)
 	  M=Numb_PA
 	  N=Numb_PA	 	 
 	  CALL pseudoinverse(A1,PINV,M,N)
@@ -591,7 +593,7 @@ END FUNCTION FindDet
 	  write(*,*) 'Initial ACTIVE Slip Systems:',PA_temp
 	  write(*,*) 'Initial INACTIVE Slip Systems:',INACTIVE
 	  
-	  !re-assign shear increments array
+	  !Set the size of shear increments array equal to N_slipSys
 	  ALLOCATE(x_beta2(Numb_PA))
 	  x_beta2=x_beta1
 	  DEALLOCATE(x_beta1)
@@ -600,30 +602,30 @@ END FUNCTION FindDet
 	  x_beta1(PA_temp)=x_beta2
 	  write(*,*) 'Initial Slip Increment Rates:', x_beta1
 	  
-	! %only accept positive shear increments at PA slip systems
-	! %remove slip systems with shear increments <= 0 by updating PA and INACTIVE
+	  !only accept positive shear increments at PA slip systems
+	  !remove slip systems with shear increments <= 0 by updating PA and INACTIVE
 	  ALLOCATE(PA_large_temp(N_slipSys))
 	  flag1=0
 	  Numb_PA_temp=Numb_PA
 	  WHILE (flag1 .eq. 0)
-		count_neg=0
+		count_neg=0 
 		DO i=1,Numb_PA_temp
 			IF (x_beta1(PA_temp(i)) .lt. 0.d0) THEN
-				count_neg=count_neg+1
+				count_neg=count_neg+1 !count slip systems with negative shear strain rates
 			ENDIF
 		ENDDO
-		IF (count_neg .ge. 1) THEN
+		IF (count_neg .ge. 1) THEN !if there exist at least one slip system with neg. shear strain rates
 		  PA_large_temp(1:N_slipSys)=0
 		  Numb_PA_temp=0
 		  DO i=1,N_slipSys    
 			IF (x_beta1(i) .gt. 0.d0) THEN
 				Numb_PA_temp=Numb_PA_temp+1
-				PA_large_temp(Numb_PA_temp)=i		
+				PA_large_temp(Numb_PA_temp)=i !potentially active slip systems array with size=N_slipSys
 			ENDIF
 		  ENDDO
 		  DEALLOCATE(PA_temp)
 		  ALLOCATE(PA_temp(Numb_PA_temp))
-		  PA_temp=PA_large_temp(1:Numb_PA_temp)
+		  PA_temp=PA_large_temp(1:Numb_PA_temp) !PA_temp only contains potentially active slip systems
 		
 		  DEALLOCATE(INACTIVE)
 		  ALLOCATE(INACTIVE(N_slipSys-Numb_PA_temp))	
@@ -640,20 +642,21 @@ END FUNCTION FindDet
 		  ALLOCATE(A1(Numb_PA_temp,Numb_PA_temp))  
 		  ALLOCATE(PINV(Numb_PA_temp,Numb_PA_temp))
 		  ALLOCATE(b1(Numb_PA_temp))
-		  A1=A(PA_large_temp(1:Numb_PA_temp),PA_large_temp(1:Numb_PA_temp))
-		  b1=b(PA_large_temp(1:Numb_PA_temp))
+		  A1=A(PA_temp,PA_temp)
+		  b1=b(PA_temp)
 		  M=Numb_PA_temp
 		  N=Numb_PA_temp
   
 		  CALL pseudoinverse(A1,PINV,M,N)
 		  DEALLOCATE(x_beta2)
 		  ALLOCATE(x_beta2(Numb_PA_temp))	  
-		  x_beta2=MATMUL(PINV,b1)
-
+		  x_beta2=MATMUL(PINV,b1) !compute shear strain rates for the updated pot. active slip systems
+		  write(*,*) 'x_beta2',x_beta2
 		  DEALLOCATE(x_beta1)
 		  ALLOCATE(x_beta1(N_slipSys))
 		  x_beta1(1:N_slipSys)=0.d0
-		  x_beta1(PA_large_temp(1:Numb_PA_temp))=x_beta2
+		  x_beta1(PA_temp)=x_beta2
+
 		ELSE
 		  flag1=1
 		ENDIF
@@ -736,7 +739,7 @@ END FUNCTION FindDet
 	  END
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	  
 	  SUBROUTINE find_inactive(PA,INACTIVE,N_slipSys,Numb_PA)
-	  ! Find initial inactive set of slip systems. The INACTIVE set is sorted in this subroutine
+	  ! Find inactive slip systems from active set. The INACTIVE set is sorted in this subroutine
 	  IMPLICIT NONE
 	  INTEGER, intent(in) :: N_slipSys, Numb_PA, PA(Numb_PA)
 	  INTEGER i, ACTIVE_INDEX, INACTIVE_INDEX, INACTIVE(N_slipSys-Numb_PA)
@@ -753,5 +756,23 @@ END FUNCTION FindDet
 	  ENDDO
 	  
 	  END
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	  
+	  SUBROUTINE find_active(PA,INACTIVE,N_slipSys,Numb_PA)
+	  ! Find active set of slip systems from inactive set. 
+	  IMPLICIT NONE
+	  INTEGER, intent(in) :: N_slipSys, Numb_PA, INACTIVE(N_slipSys-Numb_PA)
+	  INTEGER i, ACTIVE_INDEX, INACTIVE_INDEX , PA(Numb_PA)
 	  
+	  ACTIVE_INDEX=1
+	  INACTIVE_INDEX=1
+	  DO i=1, N_slipSys
+		IF (i .eq. INACTIVE(INACTIVE_INDEX)) THEN
+			INACTIVE_INDEX=INACTIVE_INDEX+1
+		ELSE
+			PA(ACTIVE_INDEX)=i
+			ACTIVE_INDEX=ACTIVE_INDEX+1
+		ENDIF
+	  ENDDO
+	  
+	  END	  
 	  
