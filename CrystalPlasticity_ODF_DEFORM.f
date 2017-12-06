@@ -308,7 +308,8 @@
 	  ALLOCATE(INACTIVE(N_slipSys))  
 	  IF (Numb_PA .gt. 0) THEN
 		CALL INACTIVE_SLIP_REMOVAL(A_alpha_beta,b,PA,N_slipSys,Numb_PA,INACTIVE,x_beta1)
-
+		! CALL find_active(PA,INACTIVE,N_slipSys,Numb_PA)
+		write(*,*)'Final No. of Active Slip Systems:',Numb_PA
 		write(*,*) 'Final PA:',PA
 	  ENDIF
 
@@ -558,14 +559,14 @@ END FUNCTION FindDet
 	  SUBROUTINE INACTIVE_SLIP_REMOVAL(A,b,PA,N_slipSys,Numb_PA,INACTIVE,x_beta1)
 	  ! Iteratively removes slip systems with shear rates less than 0 among potentially active slip systems
 	  IMPLICIT NONE
-	  INTEGER, intent(in) :: N_slipSys, Numb_PA, PA(Numb_PA)
+	  INTEGER, intent(in) :: N_slipSys, PA(Numb_PA)
 	  DOUBLE PRECISION, intent(in) :: A(N_slipSys,N_slipSys)
 	  DOUBLE PRECISION, intent(in) :: b(N_slipSys)
 
 	  DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: b1, x_beta1, x_beta2
 	  DOUBLE PRECISION, DIMENSION(:,:), ALLOCATABLE ::A1, PINV
 	  INTEGER, DIMENSION(:), ALLOCATABLE :: PA_temp, INACTIVE, PA_large_temp
-	  INTEGER M, N, i, Numb_PA_temp, flag1, count_neg 
+	  INTEGER M, N, i, Numb_PA, Numb_PA_temp, flag1, count_neg 
 	  
 	  !! Calculate shear increments x=A^(+)b, where A^(+) is the pseudoinverse of A
 	  ALLOCATE(A1(Numb_PA,Numb_PA))  
@@ -634,7 +635,7 @@ END FUNCTION FindDet
 			EXIT ! since pseudoinverse function would return error if an emptry matrix is entered
 		  ENDIF
 		  DEALLOCATE(A1)
-		  DEALLOCATE(PINV)a
+		  DEALLOCATE(PINV)
 		  DEALLOCATE(b1)
 		  ALLOCATE(A1(Numb_PA_temp,Numb_PA_temp))  
 		  ALLOCATE(PINV(Numb_PA_temp,Numb_PA_temp))
@@ -659,7 +660,7 @@ END FUNCTION FindDet
 	  ENDDO
 	  
 	  where (x_beta1 .lt. 0.d0) x_beta1=0.d0
-
+	  Numb_PA=Numb_PA_temp
 	  write(*,*) 'Final Slip Increment Rates::', x_beta1
 	  write(*,*) '------ Done Removing Inactive Slip Systems ---------'
 	  

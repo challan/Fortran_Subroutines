@@ -3,3 +3,5 @@
 *.atools
 *.amake
 *.bk
+*.obj
+Release/mkdep_F77
