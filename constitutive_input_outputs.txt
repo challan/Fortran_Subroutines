@@ -1,0 +1,82 @@
+
+First iteration inside "updatedata" fxn
+
+%%inputs
+% m_alpha (slip direction) 3 (direction component) by 12 matrix (slip systems)
+         0    0.7070   -0.7070
+   -0.7070         0    0.7070
+    0.7070   -0.7070         0
+         0   -0.7070   -0.7070
+    0.7070         0    0.7070
+   -0.7070    0.7070         0
+         0    0.7070   -0.7070
+    0.7070         0    0.7070
+   -0.7070   -0.7070         0
+         0   -0.7070   -0.7070
+   -0.7070         0    0.7070
+    0.7070    0.7070         0
+% n_alpha (slip plane normal) 3 by 12 matrix
+    0.5770    0.5770    0.5770
+    0.5770    0.5770    0.5770
+    0.5770    0.5770    0.5770
+   -0.5770   -0.5770    0.5770
+   -0.5770   -0.5770    0.5770
+   -0.5770   -0.5770    0.5770
+   -0.5770    0.5770    0.5770
+   -0.5770    0.5770    0.5770
+   -0.5770    0.5770    0.5770
+    0.5770   -0.5770    0.5770
+    0.5770   -0.5770    0.5770
+    0.5770   -0.5770    0.5770
+% Dmat (tangent modulus) 6 by 6 matrix
+      170000      124000      124000           0           0           0
+      124000      170000      124000           0           0           0
+      124000      124000      170000           0           0           0
+           0           0           0      150000           0           0
+           0           0           0           0      150000           0
+           0           0           0           0           0      150000
+% s_alpha_t (slip resistance) scalar for each slip system
+16    16    16    16    16    16    16    16    16    16    16    16
+% F_tau (deformation gradient @ tau=t_0+dt) 3 by 3 matrix
+    1.0001    0.0000   -0.0000
+   -0.0000    1.0000    0.0000
+   -0.0000   -0.0000    1.0000
+% FP_t (plastic deformation gradient @ t_0) 3 by 3 matrix
+     1     0     0
+     0     1     0
+     0     0     1
+% FE_t (elastic deformation gradient @ t_0) 3 by 3 matrix
+    1.0001    0.0000   -0.0000
+   -0.0000    1.0000    0.0000
+   -0.0000   -0.0000    1.0000
+% rot (rodrigues vector for the element) 3 component vector
+0.3620    0.3161   -0.0945
+% rotnew (rodrigues vector for the quad. point) 3 component vector
+0.3620    0.3161   -0.0945
+% dt (time step)
+0.1000
+% nsd (spatial dimension)
+3
+% POSTPROCESS (postprocessor flag 0 or 1)
+
+
+
+%% outputs
+%FP_tau (plastic deformation gradient @ t_0+dt) 3 by 3
+     1     0     0
+     0     1     0
+     0     0     1
+%Fe_tau (elastic deformation gradient @ t_0+dt) 3 by 3
+    1.0001   -0.0000   -0.0000
+    0.0000    1.0000   -0.0000
+   -0.0000    0.0000    1.0000
+% s_alpha_tau (slip resistance) scalar for each slip system
+16    16    16    16    16    16    16    16    16    16    16    16
+% rotnew (updated Rodrigues vector)
+    0.3620    0.3161   -0.0945   
+% Cauchy_Tau
+   20.4812    0.1757    4.4610
+    0.1757    4.4892    1.1228
+    4.4610    1.1228    6.0579
+% dT Tangent Modulus
+   
