@@ -312,7 +312,7 @@
 		DEALLOCATE(PA)
 		ALLOCATE(PA(Numb_PA))
 		PA=PA_large_temp(1:Numb_PA)
-		write(*,*) 'x_beta1',x_beta1
+		write(*,*) 'Final Slip Increment Rates::', x_beta1
 		ALLOCATE(INACTIVE(N_slipSys-Numb_PA))
 		CALL find_inactive(PA,INACTIVE,N_slipSys,Numb_PA)
 		write(*,*)'Final Active Slip Systems:',PA
@@ -320,7 +320,17 @@
 		
 		ALLOCATE(Ainv(Numb_PA,Numb_PA))
 		CALL matrix_inversion(A_alpha_beta(PA,PA),Ainv,Numb_PA)
-		write(*,*) 'inverse A:',Ainv
+		
+		!!!!!!!! STEP 6 !!!!!!!!!!!
+		DO i=1,N_slipSys
+			FP_tau=FP_tau+x_beta1(i)*Sgn(resolved_shear_tau_trial(i))*MATMUL(SCHMID_TENSOR1(3*(i-1)+1:3*i,1:3),FP_t)	
+		ENDDO
+		write(*,*) 'FP_tau'
+		do i=1,3
+			write(*,*) FP_tau(i,1:3)
+		enddo
+		
+		
 	  ENDIF
 
 
@@ -668,7 +678,7 @@ END FUNCTION FindDet
 	  
 	  where (x_beta1 .lt. 0.d0) x_beta1=0.d0
 	  Numb_PA=Numb_PA_temp
-	  write(*,*) 'Final Slip Increment Rates::', x_beta1
+	  
 	  write(*,*) '------ Done Removing Inactive Slip Systems ---------'
 	  
 	  END
@@ -726,7 +736,7 @@ END FUNCTION FindDet
 	  CUTOFF = 10.d0*RNDERR*maxval(A1)
 	  ! write(*,*) 'cutoff value is' , CUTOFF
 
-	  write(*,*)'Singular Values from SVD:',S
+	  ! write(*,*)'Singular Values from SVD:',S
 	  SIGMA_plus(1:M,1:N)=0.d0
 	  index=1
 	  do i=1,M
@@ -785,7 +795,7 @@ END FUNCTION FindDet
 	! decomposition.  Depends on LAPACK.
 	  INTEGER, intent(in) :: Numb_PA
 	  DOUBLE PRECISION, intent(in) :: A(Numb_PA,Numb_PA)
-	  DOUBLE PRECISION Ainv(Numb_PA,Numb_PA)
+	  DOUBLE PRECISION, dimension(size(A,1),size(A,2)) :: Ainv
 
 	  DOUBLE PRECISION, dimension(size(A,1)) :: work  ! work array for LAPACK
 	  integer, dimension(size(A,1)) :: ipiv   ! pivot indices
