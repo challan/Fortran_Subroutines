@@ -129,10 +129,11 @@
 	  DOUBLE PRECISION FP_tau(3,3),FE_tau(3,3),s_alpha_tau(30),T_tau(3,3)  
 	  
 	  INTEGER N_slipSys, AllocateStatus, i, j, Numb_PA
-	  DOUBLE PRECISION q1,q2, Sgn, FindDet
+	  DOUBLE PRECISION q1,q2, Sgn, FindDet, const, h1
 	  DOUBLE PRECISION, DIMENSION(:,:),ALLOCATABLE :: q,rotmat,ELASTIC_MODULI_4T,Fpn_inv, &
 	 & FE_tau_trial, F_trial, CE_tau_trial, Ee_tau_trial, Identity_Mat, SCHMID_TENSOR1,Bsym, &
-	 & MAT1,temp,T_star_tau_trial, h_alpha_beta_t,A_alpha_beta,symm1, symm,FP_tau_inv, Ainv
+	 & MAT1,temp,T_star_tau_trial, h_alpha_beta_t,A_alpha_beta,symm1, symm,FP_tau_inv, Ainv, &
+	 & T_star_tau
 	  DOUBLE PRECISION, DIMENSION(:),ALLOCATABLE :: resolved_shear_tau_trial,b,s_beta,h0,s_s,a, &
 	 & h_beta ,Ee_tau_trial_Vec, symm1_Vec, x_beta1
 	  INTEGER, DIMENSION(:), ALLOCATABLE :: PA, PA_temp,PA_large_temp,INACTIVE
@@ -325,11 +326,55 @@
 		DO i=1,N_slipSys
 			FP_tau=FP_tau+x_beta1(i)*Sgn(resolved_shear_tau_trial(i))*MATMUL(SCHMID_TENSOR1(3*(i-1)+1:3*i,1:3),FP_t)	
 		ENDDO
-		write(*,*) 'FP_tau'
+		write(*,*) 'Final FP_tau'
 		do i=1,3
 			write(*,*) FP_tau(i,1:3)
 		enddo
 		
+		!!!!!!!! STEP 7 !!!!!!!!!!!
+		! FP_tau = FP_tau/(FindDet(FP_tau,3)**(1.d0/3.d0))
+		
+		!!!!!!!! STEP 8 !!!!!!!!!!!
+		FP_tau_inv(1:3,1:3)=0.d0
+		CALL matinv3(FP_tau,FP_tau_inv)
+		FE_tau=MATMUL(F_tau,FP_tau_inv)
+		ALLOCATE(T_star_tau(3,3))
+		T_star_tau(1:3,1:3)=0.d0
+	    symm1(1:3,1:3)=0.d0
+	    symm(1:3,1:3)=0.d0
+		symm1_Vec(1:3)=0.d0
+		DO i=1,N_slipSys
+			symm1=MATMUL(CE_tau_trial,SCHMID_TENSOR1(3*(i-1)+1:3*i,1:3))
+			symm1=0.5d0*(symm1+TRANSPOSE(symm1))
+			CALL vecform(symm1,symm1_Vec)
+			CALL matform(MATMUL(ELASTIC_MODULI_4T,symm1_Vec),symm)
+			T_star_tau=T_star_tau - x_beta1(i)*Sgn(resolved_shear_tau_trial(i))*symm						 	
+		ENDDO
+		T_star_tau = T_star_tau_trial + T_star_tau
+		write(*,*) 'T_star_tau'
+		do i=1,3
+			write(*,*) T_star_tau(i,1:3)
+		enddo		
+		
+		!!!!!!!! STEP 9 !!!!!!!!!!!
+		const=FindDet(FE_tau, 3)**(-1.d0)
+		T_tau=MATMUL(FE_tau,const*T_star_tau)
+		T_tau=MATMUL(T_tau,TRANSPOSE(FE_tau))
+		write(*,*) 'T_tau'
+		do i=1,3
+			write(*,*) T_tau(i,1:3)
+		enddo
+
+		DO i=1,N_slipSys
+			h1=0.d0
+			DO j=1,N_slipSys
+				h1=h1+h_alpha_beta_t(i,j)*x_beta1(j)
+			ENDDO
+			s_alpha_tau(i)=s_alpha_t(i)+h1
+		ENDDO
+		
+		write(*,*)'Final Slip Resistance'
+		write(*,*) s_alpha_tau
 		
 	  ENDIF
 
