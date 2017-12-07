@@ -132,10 +132,10 @@
 	  DOUBLE PRECISION q1,q2, Sgn, FindDet
 	  DOUBLE PRECISION, DIMENSION(:,:),ALLOCATABLE :: q,rotmat,ELASTIC_MODULI_4T,Fpn_inv, &
 	 & FE_tau_trial, F_trial, CE_tau_trial, Ee_tau_trial, Identity_Mat, SCHMID_TENSOR1,Bsym, &
-	 & MAT1,temp,T_star_tau_trial, h_alpha_beta_t,A_alpha_beta,symm1, symm,FP_tau_inv
+	 & MAT1,temp,T_star_tau_trial, h_alpha_beta_t,A_alpha_beta,symm1, symm,FP_tau_inv, Ainv
 	  DOUBLE PRECISION, DIMENSION(:),ALLOCATABLE :: resolved_shear_tau_trial,b,s_beta,h0,s_s,a, &
 	 & h_beta ,Ee_tau_trial_Vec, symm1_Vec, x_beta1
-	  INTEGER, DIMENSION(:), ALLOCATABLE :: PA, PA_temp,INACTIVE
+	  INTEGER, DIMENSION(:), ALLOCATABLE :: PA, PA_temp,PA_large_temp,INACTIVE
 
 	  q1=1.4d0!  NON CO-PLANAR SLIP SYSTEMS
 	  q2=1.0d0!  CO-PLANAR SLIP SYSTEMS n_alpha1=n_alpha2
@@ -303,16 +303,24 @@
 	  T_tau=MATMUL(T_tau,TRANSPOSE(FE_tau))
 	  s_alpha_tau=s_alpha_t
 	  
-	  write(*,*) ' Number of Potentially Active Slip Systems:',Numb_PA
-	  ALLOCATE(x_beta1(N_slipSys))
-	  ALLOCATE(INACTIVE(N_slipSys))  
+
+	  ALLOCATE(x_beta1(N_slipSys)) 
+	  ALLOCATE(PA_large_temp(N_slipSys)) 
+	  PA_large_temp(1:Numb_PA)=PA
 	  IF (Numb_PA .gt. 0) THEN
-		CALL INACTIVE_SLIP_REMOVAL(A_alpha_beta,b,PA,N_slipSys,Numb_PA,INACTIVE,x_beta1)
+		CALL INACTIVE_SLIP_REMOVAL(A_alpha_beta,b,PA_large_temp,N_slipSys,Numb_PA,x_beta1)
 		DEALLOCATE(PA)
 		ALLOCATE(PA(Numb_PA))
-		CALL find_active(PA,INACTIVE,N_slipSys,Numb_PA)
-		write(*,*)'Final No. of Active Slip Systems:',Numb_PA
-		write(*,*) 'Final PA:',PA
+		PA=PA_large_temp(1:Numb_PA)
+		write(*,*) 'x_beta1',x_beta1
+		ALLOCATE(INACTIVE(N_slipSys-Numb_PA))
+		CALL find_inactive(PA,INACTIVE,N_slipSys,Numb_PA)
+		write(*,*)'Final Active Slip Systems:',PA
+		write(*,*)'Final Inactive Slip Systems:',INACTIVE
+		
+		ALLOCATE(Ainv(Numb_PA,Numb_PA))
+		CALL matrix_inversion(A_alpha_beta(PA,PA),Ainv,Numb_PA)
+		write(*,*) 'inverse A:',Ainv
 	  ENDIF
 
 
@@ -558,53 +566,50 @@
     
 END FUNCTION FindDet
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	  SUBROUTINE INACTIVE_SLIP_REMOVAL(A,b,PA,N_slipSys,Numb_PA,INACTIVE,x_beta1)
+	  SUBROUTINE INACTIVE_SLIP_REMOVAL(A,b,PA_large_temp,N_slipSys,Numb_PA,x_beta1)
 	  ! Iteratively removes slip systems with shear rates less than 0 among potentially active slip systems
 	  IMPLICIT NONE
-	  INTEGER, intent(in) :: N_slipSys, PA(Numb_PA)
+	  INTEGER, intent(in) :: N_slipSys
 	  DOUBLE PRECISION, intent(in) :: A(N_slipSys,N_slipSys)
-	  DOUBLE PRECISION, intent(in) :: b(N_slipSys)
-
-	  DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: b1, x_beta1, x_beta2
+	  DOUBLE PRECISION, intent(in) :: b(N_slipSys)	  
+	  DOUBLE PRECISION x_beta1(N_slipSys)
+	  INTEGER Numb_PA, PA_large_temp(N_slipSys)
+	  
+	  DOUBLE PRECISION, DIMENSION(:), ALLOCATABLE :: b1, x_beta2
 	  DOUBLE PRECISION, DIMENSION(:,:), ALLOCATABLE ::A1, PINV
-	  INTEGER, DIMENSION(:), ALLOCATABLE :: PA_temp, INACTIVE, PA_large_temp
-	  INTEGER M, N, i, Numb_PA, Numb_PA_temp, flag1, count_neg 
+	  INTEGER, DIMENSION(:), ALLOCATABLE :: PA_temp, INACTIVE
+	  INTEGER M, N, i, Numb_PA_temp, flag1, count_neg 
 	  
 	  !! Calculate shear increments x=A^(+)b, where A^(+) is the pseudoinverse of A
 	  ALLOCATE(A1(Numb_PA,Numb_PA))  
 	  ALLOCATE(PINV(Numb_PA,Numb_PA))
 	  ALLOCATE(b1(Numb_PA))
+	  
 	  ALLOCATE(PA_temp(Numb_PA))
-	  PA_temp=PA
+	  PA_temp=PA_large_temp(1:Numb_PA)
 
 	  A1=A(PA_temp,PA_temp)
 	  b1=b(PA_temp)
 	  M=Numb_PA
 	  N=Numb_PA	 	 
 	  CALL pseudoinverse(A1,PINV,M,N)
-	  DEALLOCATE(x_beta1) ! Clear variable from the previous subroutine
-	  ALLOCATE(x_beta1(Numb_PA))	  
-	  x_beta1=MATMUL(PINV,b1)
+	  ALLOCATE(x_beta2(Numb_PA))	  
+	  x_beta2=MATMUL(PINV,b1)
 
 	  !Find inactive slip systems 
-	  DEALLOCATE(INACTIVE)
 	  ALLOCATE(INACTIVE(N_slipSys-Numb_PA))	
 	  CALL find_inactive(PA_temp,INACTIVE,N_slipSys,Numb_PA) 
 	  write(*,*) 'Initial ACTIVE Slip Systems:',PA_temp
 	  write(*,*) 'Initial INACTIVE Slip Systems:',INACTIVE
 	  
-	  !Set the size of shear increments array equal to N_slipSys
-	  ALLOCATE(x_beta2(Numb_PA))
-	  x_beta2=x_beta1
-	  DEALLOCATE(x_beta1)
-	  ALLOCATE(x_beta1(N_slipSys))
+
 	  x_beta1(1:N_slipSys)=0.d0
 	  x_beta1(PA_temp)=x_beta2
 	  write(*,*) 'Initial Slip Increment Rates:', x_beta1
 	  
 	  !only accept positive shear increments at PA slip systems
 	  !remove slip systems with shear increments <= 0 by updating PA and INACTIVE
-	  ALLOCATE(PA_large_temp(N_slipSys))
+
 	  flag1=0
 	  Numb_PA_temp=Numb_PA
 	  WHILE (flag1 .eq. 0)
@@ -652,11 +657,10 @@ END FUNCTION FindDet
 		  ALLOCATE(x_beta2(Numb_PA_temp))	  
 		  x_beta2=MATMUL(PINV,b1) !compute shear strain rates for the updated pot. active slip systems
 		  write(*,*) 'x_beta2',x_beta2
-		  DEALLOCATE(x_beta1)
-		  ALLOCATE(x_beta1(N_slipSys))
 		  x_beta1(1:N_slipSys)=0.d0
 		  x_beta1(PA_temp)=x_beta2
-
+		  write(*,*)'Enforcing Positive Shear Increments'
+		  x_beta1(PA_temp)=0.01d0 !!!!!!!!!!!!!!!!! Need to Remove This !!!!!!!!!!!!!!!!!!!!!
 		ELSE
 		  flag1=1
 		ENDIF
@@ -757,7 +761,7 @@ END FUNCTION FindDet
 	  
 	  END
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	  
-	  SUBROUTINE find_active(PA,INACTIVE,N_slipSys,Numb_PA)
+	  SUBROUTINE find_active(PA,INACTIVE,N_slipSys,Numb_PA)	  
 	  ! Find active set of slip systems from inactive set. 
 	  IMPLICIT NONE
 	  INTEGER, intent(in) :: N_slipSys, Numb_PA, INACTIVE(N_slipSys-Numb_PA)
@@ -774,5 +778,47 @@ END FUNCTION FindDet
 		ENDIF
 	  ENDDO
 	  
-	  END	  
+	  END	
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	  SUBROUTINE matrix_inversion(A,Ainv,Numb_PA)
+	! Returns the inverse of a matrix (any Numb_PA-by-Numb_PA size) calculated by finding the LU
+	! decomposition.  Depends on LAPACK.
+	  INTEGER, intent(in) :: Numb_PA
+	  DOUBLE PRECISION, intent(in) :: A(Numb_PA,Numb_PA)
+	  DOUBLE PRECISION Ainv(Numb_PA,Numb_PA)
+
+	  DOUBLE PRECISION, dimension(size(A,1)) :: work  ! work array for LAPACK
+	  integer, dimension(size(A,1)) :: ipiv   ! pivot indices
+	  integer :: n, info
+
+	  ! External procedures defined in LAPACK
+	  ! external DGETRF
+	  ! external DGETRI
+     
+	  ! Store A in Ainv to prevent it from being overwritten by LAPACK
+	  Ainv = A
+	  n = size(A,1)
+
+	  ! DGETRF computes an LU factorization of a general M-by-N matrix A
+	  ! using partial pivoting with row interchanges.
+	  call DGETRF(n, n, Ainv, n, ipiv, info)
+
+	  if (info /= 0) then
+		 stop 'Matrix is numerically singular!'
+	  end if
+
+	  ! DGETRI computes the inverse of a matrix using the LU factorization
+	  ! computed by DGETRF.
+	  call DGETRI(n, Ainv, n, ipiv, work, n, info)
+
+	  if (info /= 0) then
+		 stop 'Matrix inversion failed!'
+	  end if
+	  END
+
+
+
+
+
+	  
 	  
