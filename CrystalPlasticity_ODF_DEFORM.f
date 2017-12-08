@@ -129,13 +129,13 @@
 	  DOUBLE PRECISION FP_tau(3,3),FE_tau(3,3),s_alpha_tau(30),T_tau(3,3)  
 	  
 	  INTEGER N_slipSys, AllocateStatus, i, j, Numb_PA
-	  DOUBLE PRECISION q1,q2, Sgn, FindDet, const, h1
+	  DOUBLE PRECISION q1,q2, Sgn, FindDet, const, h1 
 	  DOUBLE PRECISION, DIMENSION(:,:),ALLOCATABLE :: q,rotmat,ELASTIC_MODULI_4T,Fpn_inv, &
 	 & FE_tau_trial, F_trial, CE_tau_trial, Ee_tau_trial, Identity_Mat, SCHMID_TENSOR1,Bsym, &
 	 & MAT1,temp,T_star_tau_trial, h_alpha_beta_t,A_alpha_beta,symm1, symm,FP_tau_inv, Ainv, &
-	 & T_star_tau
+	 & T_star_tau, ElasticityTensor, TM, F_temp, scratch_1, scratch_2, EtF
 	  DOUBLE PRECISION, DIMENSION(:),ALLOCATABLE :: resolved_shear_tau_trial,b,s_beta,h0,s_s,a, &
-	 & h_beta ,Ee_tau_trial_Vec, symm1_Vec, x_beta1
+	 & h_beta ,Ee_tau_trial_Vec, symm1_Vec, x_beta1, col1,col2,col3,col4,col5,col6
 	  INTEGER, DIMENSION(:), ALLOCATABLE :: PA, PA_temp,PA_large_temp,INACTIVE
 
 	  q1=1.4d0!  NON CO-PLANAR SLIP SYSTEMS
@@ -377,8 +377,110 @@
 		write(*,*) s_alpha_tau
 		
 	  ENDIF
+	  
+	  ALLOCATE(ElasticityTensor(6,6))
+	  ALLOCATE(col1(6))
+	  ALLOCATE(col2(6))
+	  ALLOCATE(col3(6))
+	  ALLOCATE(col4(6))
+	  ALLOCATE(col5(6))
+	  ALLOCATE(col6(6))
+	  col1=(/ELASTIC_MODULI_4T(1,1),ELASTIC_MODULI_4T(6,1),ELASTIC_MODULI_4T(5,1),&
+	 & 		 ELASTIC_MODULI_4T(2,1),ELASTIC_MODULI_4T(4,1),ELASTIC_MODULI_4T(3,1)/)
+	  col2=(/ELASTIC_MODULI_4T(1,2),ELASTIC_MODULI_4T(6,2),ELASTIC_MODULI_4T(5,2),&
+	 & 		 ELASTIC_MODULI_4T(2,2),ELASTIC_MODULI_4T(4,2),ELASTIC_MODULI_4T(3,2)/)
+	  col3=(/ELASTIC_MODULI_4T(1,3),ELASTIC_MODULI_4T(6,3),ELASTIC_MODULI_4T(5,3),&
+	 & 		 ELASTIC_MODULI_4T(2,3),ELASTIC_MODULI_4T(4,3),ELASTIC_MODULI_4T(3,3)/)
+	  col4=(/ELASTIC_MODULI_4T(1,4),ELASTIC_MODULI_4T(6,4),ELASTIC_MODULI_4T(5,4),&
+	 & 		 ELASTIC_MODULI_4T(2,4),ELASTIC_MODULI_4T(4,4),ELASTIC_MODULI_4T(3,4)/)
+	  col5=(/ELASTIC_MODULI_4T(1,5),ELASTIC_MODULI_4T(6,5),ELASTIC_MODULI_4T(5,5),&
+	 & 		 ELASTIC_MODULI_4T(2,5),ELASTIC_MODULI_4T(4,5),ELASTIC_MODULI_4T(3,5)/)
+	  col6=(/ELASTIC_MODULI_4T(1,6),ELASTIC_MODULI_4T(6,6),ELASTIC_MODULI_4T(5,6),&
+	 & 		 ELASTIC_MODULI_4T(2,6),ELASTIC_MODULI_4T(4,6),ELASTIC_MODULI_4T(3,6)/)	 
+	  ElasticityTensor=reshape((/col1,col6,col5,col2,col4,col3 /),(/6,6/))
+	  
+	  ELASTIC_MODULI_4T(1:6,4:6) = ELASTIC_MODULI_4T(1:6,4:6)/2.d0  
+	  DEALLOCATE(col1)
+	  DEALLOCATE(col2)
+	  DEALLOCATE(col3)
+	  DEALLOCATE(col4)
+	  DEALLOCATE(col5)
+	  DEALLOCATE(col6)
+	  ALLOCATE(col1(9))
+	  ALLOCATE(col2(9))
+	  ALLOCATE(col3(9))
+	  ALLOCATE(col4(9))
+	  ALLOCATE(col5(9))
+	  ALLOCATE(col6(9))  
+	  i=1
+	  col1=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
+	 & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
+	 & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
+	  i=2
+	  col2=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
+	 & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
+	 & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
+	  i=3
+	  col3=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
+	 & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
+	 & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
+	  i=4
+	  col4=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
+	 & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
+	 & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
+	  i=5
+	  col5=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
+	 & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
+	 & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
+	  i=6
+	  col6=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
+	 & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
+	 & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)	 
+	  ALLOCATE(TM(9,9))
+	  TM=reshape((/col1,col6,col5,col6,col2,col4,col5,col4,col3 /),(/9,9/))
+	  write(*,*) 'TM'
+	  do i=1,9
+	  write(*,*) TM(i,1:9)
+	  enddo
+	  
+	  ALLOCATE(F_temp(3,3))
+	  F_temp = Fpn_inv;
+	  ALLOCATE(scratch_1(9,9))
+	  scratch_1=0.d0
+	  CALL right(F_temp,scratch_1)
 
+	  write(*,*)'scratch_1'
+	  do i=1,9
+		write(*,*) scratch_1(i,1:9)
+	  enddo
+	  
+	  F_temp = TRANSPOSE(F_trial)
+      ALLOCATE(scratch_2(9,9))
+	  scratch_2=0.d0
+	  CALL left(F_temp,scratch_2)
 
+	  write(*,*)'scratch_2'
+	  do i=1,9
+		write(*,*) scratch_2(i,1:9)
+	  enddo
+	  
+	  F_temp=0.d0
+      F_temp = MATMUL(scratch_1,scratch_2)
+	  write(*,*)'F_temp'
+	  do i=1,9
+		write(*,*) F_temp(i,1:9)
+	  enddo
+	  
+	  ALLOCATE(EtF(9,9))
+	  EtF=0.d0
+      CALL symmf(F_temp,EtF)
+	  
+
+	  
+	  write(*,*)'EtF'
+	  do i=1,9
+		write(*,*) EtF(i,1:9)
+	  enddo
 	  
 	  END
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	  
@@ -870,10 +972,70 @@ END FUNCTION FindDet
 		 stop 'Matrix inversion failed!'
 	  end if
 	  END
-
-
-
-
-
+!████████╗ █████╗ ███╗   ██╗ ██████╗ ███████╗███╗   ██╗████████╗    ███╗   ███╗ ██████╗ ██████╗ ██╗   ██╗██╗     ██╗   ██╗███████╗
+!╚══██╔══╝██╔══██╗████╗  ██║██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝    ████╗ ████║██╔═══██╗██╔══██╗██║   ██║██║     ██║   ██║██╔════╝
+!   ██║   ███████║██╔██╗ ██║██║  ███╗█████╗  ██╔██╗ ██║   ██║       ██╔████╔██║██║   ██║██║  ██║██║   ██║██║     ██║   ██║███████╗
+!   ██║   ██╔══██║██║╚██╗██║██║   ██║██╔══╝  ██║╚██╗██║   ██║       ██║╚██╔╝██║██║   ██║██║  ██║██║   ██║██║     ██║   ██║╚════██║
+!   ██║   ██║  ██║██║ ╚████║╚██████╔╝███████╗██║ ╚████║   ██║       ██║ ╚═╝ ██║╚██████╔╝██████╔╝╚██████╔╝███████╗╚██████╔╝███████║
+!   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝       ╚═╝     ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚══════╝ ╚═════╝ ╚══════╝
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	  SUBROUTINE right(elm,Aright)
+	  IMPLICIT NONE
+	  DOUBLE PRECISION, intent(in):: elm(3,3)
+	  DOUBLE PRECISION Aright(9,9)
+	  INTEGER i,j
+	  DO i = 1,3
+		DO j = 1,3
+			Aright(i, j)     = elm(j, i)
+			Aright(i+3, j+3) = elm(j, i)
+			Aright(i+6, j+6) = elm(j, i)
+		ENDDO
+	  ENDDO
 	  
+	  END
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	  SUBROUTINE left(elm,Aleft)
+	  IMPLICIT NONE
+	  DOUBLE PRECISION, intent(in):: elm(3,3)
+	  DOUBLE PRECISION Aleft(9,9)
+	  INTEGER i,j
+	  DO i = 0,2
+		DO j = 0,2
+			Aleft(3*i+1, 3*j+1) = elm(i+1, j+1)
+			Aleft(3*i+2, 3*j+2) = elm(i+1, j+1)
+			Aleft(3*i+3, 3*j+3) = elm(i+1, j+1)
+		ENDDO
+	  ENDDO
+	  
+	  END
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	  SUBROUTINE symmf(elm,A)
+	  IMPLICIT NONE
+	  DOUBLE PRECISION elm(9,9),A(9,9)
+	  INTEGER i,j
+
+	  DO i = 1,9
+		DO j = 1,9		
+			IF (i .eq. 2 .or. i .eq. 4) THEN
+				A(i, j) = 0.5d0* (elm(2, j) + elm(4, j))
+			ELSE
+				IF (i .eq. 3 .or. i .eq. 7) THEN
+					A(i, j) = 0.5d0* (elm(3, j) + elm(7, j))
+				ELSE
+					IF (i .eq. 6 .or. i .eq. 8) THEN
+						A(i, j) = 0.5d0* (elm(6, j) + elm(8, j))
+					ELSE
+						A(i, j) = elm(i, j);
+					ENDIF
+				ENDIF
+			ENDIF
+		ENDDO
+	  ENDDO
+	  DO i = 1,9
+		DO j = 1,9
+			elm(i, j) = A(i, j)
+		ENDDO
+	  ENDDO
+	  
+	  END
 	  
