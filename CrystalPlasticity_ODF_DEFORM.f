@@ -1,6 +1,3 @@
-!	A sample FORTRAN program. 
-!	
-!	Compile with: 	f77 hello.f
 
 	  PROGRAM MAIN
 	  IMPLICIT NONE
@@ -8,11 +5,11 @@
 	  PARAMETER(rows=30,cols=3)
 	  DOUBLE PRECISION m_alpha(rows,cols),n_alpha(rows,cols)
 	  DOUBLE PRECISION Dmat(6,6),s_alpha_t(rows)
-	  DOUBLE PRECISION F_tau(3,3),FP_t(3,3),FE_t(3,3),rot(3),rotnew(3),dt
+	  DOUBLE PRECISION F_tau(3,3),FP_t(3,3),FE_t(3,3),rot(3),dt
 	  DOUBLE PRECISION FP_tau(3,3),FE_tau(3,3),s_alpha_tau(12),T_tau(3,3)	
 	  
-	  call Read_Inputs(m_alpha,n_alpha,Dmat,s_alpha_t,F_tau,FP_t,FE_t,rot,rotnew,dt,nsd)
-	  call constitutive(m_alpha,n_alpha,Dmat,s_alpha_t,F_tau,FP_t,FE_t,rot,rotnew,dt,nsd,FP_tau,FE_tau,s_alpha_tau,T_tau)
+	  call Read_Inputs(m_alpha,n_alpha,Dmat,s_alpha_t,F_tau,FP_t,FE_t,rot,dt,nsd)
+	  call constitutive(m_alpha,n_alpha,Dmat,s_alpha_t,F_tau,FP_t,FE_t,rot,dt,nsd,FP_tau,FE_tau,s_alpha_tau,T_tau)
 	
 
 	  END
@@ -22,13 +19,13 @@
 ! ██╔══██╗██╔══╝  ██╔══██║██║  ██║    ██║██║╚██╗██║██╔═══╝ ██║   ██║   ██║   ╚════██║
 ! ██║  ██║███████╗██║  ██║██████╔╝    ██║██║ ╚████║██║     ╚██████╔╝   ██║   ███████║
 ! ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═════╝     ╚═╝╚═╝  ╚═══╝╚═╝      ╚═════╝    ╚═╝   ╚══════╝                                                                               
-	  SUBROUTINE Read_Inputs(m_alpha,n_alpha,Dmat,s_alpha_t,F_tau,FP_t,FE_t,rot,rotnew,dt,nsd)
+	  SUBROUTINE Read_Inputs(m_alpha,n_alpha,Dmat,s_alpha_t,F_tau,FP_t,FE_t,rot,dt,nsd)
 	  IMPLICIT NONE
 	  INTEGER i,nrow,ncol,nsd,rows,cols
 	  PARAMETER(rows=30,cols=3)
 	  DOUBLE PRECISION m_alpha(rows,cols),n_alpha(rows,cols)
 	  DOUBLE PRECISION Dmat(6,6),s_alpha_t(rows)
-	  DOUBLE PRECISION F_tau(3,3),FP_t(3,3),FE_t(3,3),rot(3),rotnew(3),dt
+	  DOUBLE PRECISION F_tau(3,3),FP_t(3,3),FE_t(3,3),rot(3),dt
 	  character(len=100) :: filename,header
 	
 		nrow=rows
@@ -94,12 +91,7 @@
 		write(*,*) 'Reading:',header	
 		read(1,*) rot(1:ncol)
 		write(*,*) rot(1:ncol)
-		
-		read (1,*) header
-		write(*,*) 'Reading:',header	
-		read(1,*) rotnew(1:ncol)	
-		write(*,*) rotnew(1:ncol)
-		
+				
 		read (1,*) header
 		write(*,*) 'Reading:',header	
 		read(1,*) dt		
@@ -119,13 +111,13 @@
 ! ╚██████╗╚██████╔╝██║ ╚████║███████║   ██║   ██║   ██║   ╚██████╔╝   ██║   ██║ ╚████╔╝ ███████╗
 !  ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝   ╚═╝    ╚═════╝    ╚═╝   ╚═╝  ╚═══╝  ╚══════╝
 !																			
-	  SUBROUTINE constitutive(m_alpha,n_alpha,Dmat,s_alpha_t,F_tau,FP_t,FE_t,rot,rotnew,dt,nsd,& !!Inputs 
+	  SUBROUTINE constitutive(m_alpha,n_alpha,Dmat,s_alpha_t,F_tau,FP_t,FE_t,rot,dt,nsd,& !!Inputs 
 	 & FP_tau,FE_tau,s_alpha_tau,T_tau) !!Outputs
 	  IMPLICIT NONE
 	  INTEGER nsd
 	  DOUBLE PRECISION m_alpha(30,3),n_alpha(30,3)
 	  DOUBLE PRECISION Dmat(6,6),s_alpha_t(30)
-	  DOUBLE PRECISION F_tau(3,3),FP_t(3,3),FE_t(3,3),rot(3),rotnew(3),dt
+	  DOUBLE PRECISION F_tau(3,3),FP_t(3,3),FE_t(3,3),rot(3),dt
 	  DOUBLE PRECISION FP_tau(3,3),FE_tau(3,3),s_alpha_tau(30),T_tau(3,3)  
 	  
 	  INTEGER N_slipSys, AllocateStatus, i, j, Numb_PA
@@ -378,109 +370,111 @@
 		
 	  ENDIF
 	  
-	  ALLOCATE(ElasticityTensor(6,6))
-	  ALLOCATE(col1(6))
-	  ALLOCATE(col2(6))
-	  ALLOCATE(col3(6))
-	  ALLOCATE(col4(6))
-	  ALLOCATE(col5(6))
-	  ALLOCATE(col6(6))
-	  col1=(/ELASTIC_MODULI_4T(1,1),ELASTIC_MODULI_4T(6,1),ELASTIC_MODULI_4T(5,1),&
-	 & 		 ELASTIC_MODULI_4T(2,1),ELASTIC_MODULI_4T(4,1),ELASTIC_MODULI_4T(3,1)/)
-	  col2=(/ELASTIC_MODULI_4T(1,2),ELASTIC_MODULI_4T(6,2),ELASTIC_MODULI_4T(5,2),&
-	 & 		 ELASTIC_MODULI_4T(2,2),ELASTIC_MODULI_4T(4,2),ELASTIC_MODULI_4T(3,2)/)
-	  col3=(/ELASTIC_MODULI_4T(1,3),ELASTIC_MODULI_4T(6,3),ELASTIC_MODULI_4T(5,3),&
-	 & 		 ELASTIC_MODULI_4T(2,3),ELASTIC_MODULI_4T(4,3),ELASTIC_MODULI_4T(3,3)/)
-	  col4=(/ELASTIC_MODULI_4T(1,4),ELASTIC_MODULI_4T(6,4),ELASTIC_MODULI_4T(5,4),&
-	 & 		 ELASTIC_MODULI_4T(2,4),ELASTIC_MODULI_4T(4,4),ELASTIC_MODULI_4T(3,4)/)
-	  col5=(/ELASTIC_MODULI_4T(1,5),ELASTIC_MODULI_4T(6,5),ELASTIC_MODULI_4T(5,5),&
-	 & 		 ELASTIC_MODULI_4T(2,5),ELASTIC_MODULI_4T(4,5),ELASTIC_MODULI_4T(3,5)/)
-	  col6=(/ELASTIC_MODULI_4T(1,6),ELASTIC_MODULI_4T(6,6),ELASTIC_MODULI_4T(5,6),&
-	 & 		 ELASTIC_MODULI_4T(2,6),ELASTIC_MODULI_4T(4,6),ELASTIC_MODULI_4T(3,6)/)	 
-	  ElasticityTensor=reshape((/col1,col6,col5,col2,col4,col3 /),(/6,6/))
+	  !!!!!!!!!!!! Calculation of Tangent Modulus  !!!!!!!!!!!!!!!!!!!
 	  
-	  ELASTIC_MODULI_4T(1:6,4:6) = ELASTIC_MODULI_4T(1:6,4:6)/2.d0  
-	  DEALLOCATE(col1)
-	  DEALLOCATE(col2)
-	  DEALLOCATE(col3)
-	  DEALLOCATE(col4)
-	  DEALLOCATE(col5)
-	  DEALLOCATE(col6)
-	  ALLOCATE(col1(9))
-	  ALLOCATE(col2(9))
-	  ALLOCATE(col3(9))
-	  ALLOCATE(col4(9))
-	  ALLOCATE(col5(9))
-	  ALLOCATE(col6(9))  
-	  i=1
-	  col1=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
-	 & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
-	 & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
-	  i=2
-	  col2=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
-	 & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
-	 & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
-	  i=3
-	  col3=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
-	 & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
-	 & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
-	  i=4
-	  col4=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
-	 & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
-	 & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
-	  i=5
-	  col5=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
-	 & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
-	 & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
-	  i=6
-	  col6=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
-	 & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
-	 & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)	 
-	  ALLOCATE(TM(9,9))
-	  TM=reshape((/col1,col6,col5,col6,col2,col4,col5,col4,col3 /),(/9,9/))
-	  write(*,*) 'TM'
-	  do i=1,9
-	  write(*,*) TM(i,1:9)
-	  enddo
+	  ! ALLOCATE(ElasticityTensor(6,6))
+	  ! ALLOCATE(col1(6))
+	  ! ALLOCATE(col2(6))
+	  ! ALLOCATE(col3(6))
+	  ! ALLOCATE(col4(6))
+	  ! ALLOCATE(col5(6))
+	  ! ALLOCATE(col6(6))
+	  ! col1=(/ELASTIC_MODULI_4T(1,1),ELASTIC_MODULI_4T(6,1),ELASTIC_MODULI_4T(5,1),&
+	 ! & 		 ELASTIC_MODULI_4T(2,1),ELASTIC_MODULI_4T(4,1),ELASTIC_MODULI_4T(3,1)/)
+	  ! col2=(/ELASTIC_MODULI_4T(1,2),ELASTIC_MODULI_4T(6,2),ELASTIC_MODULI_4T(5,2),&
+	 ! & 		 ELASTIC_MODULI_4T(2,2),ELASTIC_MODULI_4T(4,2),ELASTIC_MODULI_4T(3,2)/)
+	  ! col3=(/ELASTIC_MODULI_4T(1,3),ELASTIC_MODULI_4T(6,3),ELASTIC_MODULI_4T(5,3),&
+	 ! & 		 ELASTIC_MODULI_4T(2,3),ELASTIC_MODULI_4T(4,3),ELASTIC_MODULI_4T(3,3)/)
+	  ! col4=(/ELASTIC_MODULI_4T(1,4),ELASTIC_MODULI_4T(6,4),ELASTIC_MODULI_4T(5,4),&
+	 ! & 		 ELASTIC_MODULI_4T(2,4),ELASTIC_MODULI_4T(4,4),ELASTIC_MODULI_4T(3,4)/)
+	  ! col5=(/ELASTIC_MODULI_4T(1,5),ELASTIC_MODULI_4T(6,5),ELASTIC_MODULI_4T(5,5),&
+	 ! & 		 ELASTIC_MODULI_4T(2,5),ELASTIC_MODULI_4T(4,5),ELASTIC_MODULI_4T(3,5)/)
+	  ! col6=(/ELASTIC_MODULI_4T(1,6),ELASTIC_MODULI_4T(6,6),ELASTIC_MODULI_4T(5,6),&
+	 ! & 		 ELASTIC_MODULI_4T(2,6),ELASTIC_MODULI_4T(4,6),ELASTIC_MODULI_4T(3,6)/)	 
+	  ! ElasticityTensor=reshape((/col1,col6,col5,col2,col4,col3 /),(/6,6/))
 	  
-	  ALLOCATE(F_temp(3,3))
-	  F_temp = Fpn_inv;
-	  ALLOCATE(scratch_1(9,9))
-	  scratch_1=0.d0
-	  CALL right(F_temp,scratch_1)
+	  ! ELASTIC_MODULI_4T(1:6,4:6) = ELASTIC_MODULI_4T(1:6,4:6)/2.d0  
+	  ! DEALLOCATE(col1)
+	  ! DEALLOCATE(col2)
+	  ! DEALLOCATE(col3)
+	  ! DEALLOCATE(col4)
+	  ! DEALLOCATE(col5)
+	  ! DEALLOCATE(col6)
+	  ! ALLOCATE(col1(9))
+	  ! ALLOCATE(col2(9))
+	  ! ALLOCATE(col3(9))
+	  ! ALLOCATE(col4(9))
+	  ! ALLOCATE(col5(9))
+	  ! ALLOCATE(col6(9))  
+	  ! i=1
+	  ! col1=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
+	 ! & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
+	 ! & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
+	  ! i=2
+	  ! col2=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
+	 ! & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
+	 ! & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
+	  ! i=3
+	  ! col3=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
+	 ! & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
+	 ! & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
+	  ! i=4
+	  ! col4=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
+	 ! & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
+	 ! & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
+	  ! i=5
+	  ! col5=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
+	 ! & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
+	 ! & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)
+	  ! i=6
+	  ! col6=(/ELASTIC_MODULI_4T(1,i),ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(5,i),&
+	 ! & 		 ELASTIC_MODULI_4T(6,i),ELASTIC_MODULI_4T(2,i),ELASTIC_MODULI_4T(4,i),&
+	 ! & 		 ELASTIC_MODULI_4T(5,i),ELASTIC_MODULI_4T(4,i),ELASTIC_MODULI_4T(3,i)/)	 
+	  ! ALLOCATE(TM(9,9))
+	  ! TM=reshape((/col1,col6,col5,col6,col2,col4,col5,col4,col3 /),(/9,9/))
+	  ! write(*,*) 'TM'
+	  ! do i=1,9
+	  ! write(*,*) TM(i,1:9)
+	  ! enddo
+	  
+	  ! ALLOCATE(F_temp(3,3))
+	  ! F_temp = Fpn_inv;
+	  ! ALLOCATE(scratch_1(9,9))
+	  ! scratch_1=0.d0
+	  ! CALL right(F_temp,scratch_1)
 
-	  write(*,*)'scratch_1'
-	  do i=1,9
-		write(*,*) scratch_1(i,1:9)
-	  enddo
+	  ! write(*,*)'scratch_1'
+	  ! do i=1,9
+		! write(*,*) scratch_1(i,1:9)
+	  ! enddo
 	  
-	  F_temp = TRANSPOSE(F_trial)
-      ALLOCATE(scratch_2(9,9))
-	  scratch_2=0.d0
-	  CALL left(F_temp,scratch_2)
+	  ! F_temp = TRANSPOSE(F_trial)
+      ! ALLOCATE(scratch_2(9,9))
+	  ! scratch_2=0.d0
+	  ! CALL left(F_temp,scratch_2)
 
-	  write(*,*)'scratch_2'
-	  do i=1,9
-		write(*,*) scratch_2(i,1:9)
-	  enddo
+	  ! write(*,*)'scratch_2'
+	  ! do i=1,9
+		! write(*,*) scratch_2(i,1:9)
+	  ! enddo
 	  
-	  F_temp=0.d0
-      F_temp = MATMUL(scratch_1,scratch_2)
-	  write(*,*)'F_temp'
-	  do i=1,9
-		write(*,*) F_temp(i,1:9)
-	  enddo
+	  ! F_temp=0.d0
+      ! F_temp = MATMUL(scratch_1,scratch_2)
+	  ! write(*,*)'F_temp'
+	  ! do i=1,9
+		! write(*,*) F_temp(i,1:9)
+	  ! enddo
 	  
-	  ALLOCATE(EtF(9,9))
-	  EtF=0.d0
-      CALL symmf(F_temp,EtF)
+	  ! ALLOCATE(EtF(9,9))
+	  ! EtF=0.d0
+      ! CALL symmf(F_temp,EtF)
 	  
 
 	  
-	  write(*,*)'EtF'
-	  do i=1,9
-		write(*,*) EtF(i,1:9)
-	  enddo
+	  ! write(*,*)'EtF'
+	  ! do i=1,9
+		! write(*,*) EtF(i,1:9)
+	  ! enddo
 	  
 	  END
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	  
